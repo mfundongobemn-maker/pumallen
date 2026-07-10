@@ -1,3 +1,211 @@
+};
+  r.readAsDataURL(f);
+  setTimeout(function(){try{e.target.value='';}catch(ex){}},300);
+}
+
+// Run analysis
+async function afRun(tf) {
+  if(!afImgs[tf]){showToast('Upload chart first');return;}
+  if(afBusy){showToast('Analysis running...');return;}
+  if(!API_KEY){showToast('Enter API key in Settings');sw('settings');return;}
+  afBusy = true;
+  var btn = document.getElementById('afbtn-'+tf);
+  btn.disabled=true; btn.textContent='Analyzing...';
+  document.getElementById('afl-'+tf).classList.add('show');
+  document.getElementById('afr-'+tf).classList.remove('show');
+  document.getElementById('afp-'+tf).classList.remove('show');
+  document.getElementById('afs-'+tf).innerHTML='<span class="badge amber">ANALYZING...</span>';
+  try {
+    var res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-opus-4-5',max_tokens:1000,system:SYS,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:afImgs[tf].mediaType,data:afImgs[tf].base64}},{type:'text',text:AF_PROMPTS[tf]}]}]})
+    });
+    if(!res.ok){var ed=await res.json().catch(function(){return{};});throw new Error(res.status+': '+(ed.error&&ed.error.message||'Check API key in Settings'));}
+    var d = await res.json();
+    var reply = (d.content||[]).map(function(b){return b.text||'';}).join('') || 'No response.';
+    afRes[tf]=reply;
+    if(!curAnalysis.tfs[tf])curAnalysis.tfs[tf]={};
+    curAnalysis.tfs[tf].result=reply;
+    localStorage.setItem('pm_afRes',JSON.stringify(afRes));
+    localStorage.setItem('pm_curAnalysis',JSON.stringify(curAnalysis));
+    document.getElementById('afl-'+tf).classList.remove('show');
+    var rb = document.getElementById('afr-'+tf);
+    rb.innerHTML=fmt(reply); rb.classList.add('show');
+    document.getElementById('afs-'+tf).innerHTML='<span class="badge amber">REVIEW</span>';
+    btn.textContent='Re-analyze'; btn.disabled=false;
+    setTimeout(function(){
+      document.getElementById('afp-'+tf).classList.add('show');
+      rb.scrollIntoView({behavior:'smooth',block:'start'});
+    },1500);
+  } catch(err) {
+    document.getElementById('afl-'+tf).classList.remove('show');
+    var rb2=document.getElementById('afr-'+tf);
+    rb2.innerHTML='<span style="color:#ff3355">⚠ '+err.message+'</span>';
+    rb2.classList.add('show');
+    document.getElementById('afs-'+tf).innerHTML='<span class="badge red">ERROR</span>';
+    btn.textContent='Retry'; btn.disabled=false;
+  }
+  afBusy=false;
+}
+
+// Grant permission
+function afGrant(tf, ok) {
+  document.getElementById('afp-'+tf).classList.remove('show');
+  var card = document.getElementById('af-'+tf);
+  if(!curAnalysis.tfs[tf])curAnalysis.tfs[tf]={};
+  curAnalysis.tfs[tf].permission=ok;
+  afPerm[tf]=ok;
+  localStorage.setItem('pm_afPerm',JSON.stringify(afPerm));
+  localStorage.setItem('pm_curAnalysis',JSON.stringify(curAnalysis));
+  if(ok){
+    card.classList.remove('rl'); card.classList.add('gl');
+    document.getElementById('afs-'+tf).innerHTML='<span class="badge green">✓ GREEN LIGHT</span>';
+    var next = AF_NEXT[tf];
+    if(next){
+      var nc = document.getElementById('af-'+next);
+      if(nc){nc.classList.remove('locked');nc.style.display='block';}
+      document.getElementById('afs-'+next).innerHTML='<span class="badge amber">UPLOAD</span>';
+      showToast('✅ '+tf+' confirmed — '+next+' unlocked');
+      setTimeout(function(){nc.scrollIntoView({behavior:'smooth',block:'start'});},300);
+    } else {
+      showVerdict(true);
+    }
+  } else {
+    card.classList.remove('gl'); card.classList.add('rl');
+    document.getElementById('afs-'+tf).innerHTML='<span class="badge red">✕ STAND DOWN</span>';
+    showVerdict(false,tf);
+  }
+}
+
+// Unlock M15
+function unlockM15() {
+  document.getElementById('afp-H1').classList.remove('show');
+  var card = document.getElementById('af-M15');
+  var conn = document.getElementById('m15-conn');
+  card.style.display='block'; conn.style.display='flex';
+  setTimeout(function(){
+    card.classList.remove('locked');
+    document.getElementById('afs-M15').innerHTML='<span class="badge amber">UPLOAD</span>';
+    showToast('🔍 H1 unclear — M15 unlocked');
+    card.scrollIntoView({behavior:'smooth',block:'start'});
+  },200);
+  document.getElementById('afs-H1').innerHTML='<span class="badge amber">→ M15</span>';
+}
+
+// Show final verdict
+function showVerdict(exe, tf) {
+  curAnalysis.verdict = exe?'EXECUTE':'STAND DOWN';
+  curAnalysis.date = new Date().toLocaleString();
+  localStorage.setItem('pm_curAnalysis',JSON.stringify(curAnalysis));
+  var v = document.getElementById('verdict-big');
+  v.className='verdict-big show '+(exe?'exe':'sd');
+  document.getElementById('v-ico').textContent=exe?'🟢':'🔴';
+  document.getElementById('v-title').textContent=exe?'EXECUTION READY':'STAND DOWN';
+  document.getElementById('v-sub').textContent=exe
+    ?'All timeframes confirmed. MO→W→D→H4→H1 aligned. Execute with discipline. No emotional exits.'
+    :'Permission denied at '+(tf||'this')+' timeframe. Market has not clearly spoken. Stand down — protect capital.';
+  v.scrollIntoView({behavior:'smooth',block:'center'});
+  // Save to history
+  var h={id:Date.now(),date:curAnalysis.date,tfs:JSON.parse(JSON.stringify(curAnalysis.tfs)),verdict:curAnalysis.verdict};
+  var hist=JSON.parse(localStorage.getItem('pm_hist')||'[]');
+  hist.unshift(h); if(hist.length>50)hist=hist.slice(0,50);
+  localStorage.setItem('pm_hist',JSON.stringify(hist));
+}
+
+// Reset analysis
+function afReset() {
+  afImgs={MO:null,W:null,D:null,H4:null,H1:null,M15:null};
+  afRes={MO:null,W:null,D:null,H4:null,H1:null,M15:null};
+  afPerm={MO:null,W:null,D:null,H4:null,H1:null,M15:null};
+  afBusy=false;
+  curAnalysis={date:null,tfs:{},verdict:null};
+  localStorage.removeItem('pm_afRes');localStorage.removeItem('pm_afPerm');
+  localStorage.removeItem('pm_curAnalysis');localStorage.removeItem('pm_afImgSrc');
+  ['MO','W','D','H4','H1','M15'].forEach(function(tf,i){
+    var card=document.getElementById('af-'+tf); if(!card)return;
+    card.className='af-card'+(i>0?' locked':'');
+    if(tf==='M15'){card.style.display='none';}
+    var img=document.getElementById('afi-'+tf); if(img){img.src='';img.classList.remove('show');}
+    var rb=document.getElementById('afr-'+tf); if(rb){rb.classList.remove('show');rb.innerHTML='';}
+    var pp=document.getElementById('afp-'+tf); if(pp)pp.classList.remove('show');
+    var ll=document.getElementById('afl-'+tf); if(ll)ll.classList.remove('show');
+    var btn=document.getElementById('afbtn-'+tf); if(btn){btn.disabled=true;btn.textContent='Analyze';}
+    var st=document.getElementById('afs-'+tf);
+    if(st)st.innerHTML=i===0?'<span class="badge amber">UPLOAD</span>':'<span class="badge muted">🔒 LOCKED</span>';
+  });
+  document.getElementById('m15-conn').style.display='none';
+  document.getElementById('verdict-big').className='verdict-big';
+  document.getElementById('page-analysis').scrollTop=0;
+  showToast('Analysis reset');
+}
+
+// Restore analysis on load
+function restoreAnalysis() {
+  try {
+    var imgs=JSON.parse(localStorage.getItem('pm_afImgSrc')||'{}');
+    Object.keys(imgs).forEach(function(tf){
+      if(!imgs[tf])return;
+      var imgEl=document.getElementById('afi-'+tf);
+      if(imgEl){imgEl.src=imgs[tf];imgEl.classList.add('show');}
+      var src=imgs[tf];
+      afImgs[tf]={base64:src.split(',')[1],mediaType:(src.match(/data:(.*?);/)||[,'image/jpeg'])[1],src:src};
+      var btn=document.getElementById('afbtn-'+tf); if(btn)btn.disabled=false;
+    });
+    ['MO','W','D','H4','H1','M15'].forEach(function(tf,i){
+      var result=afRes[tf], perm=afPerm[tf];
+      if(!result)return;
+      var card=document.getElementById('af-'+tf); if(!card)return;
+      if(tf==='M15'){card.style.display='block';document.getElementById('m15-conn').style.display='flex';}
+      card.classList.remove('locked');
+      var rb=document.getElementById('afr-'+tf); if(rb){rb.innerHTML=fmt(result);rb.classList.add('show');}
+      var btn=document.getElementById('afbtn-'+tf); if(btn){btn.disabled=false;btn.textContent='Re-analyze';}
+      var st=document.getElementById('afs-'+tf);
+      if(perm===true){
+        card.classList.add('gl');
+        if(st)st.innerHTML='<span class="badge green">✓ GREEN LIGHT</span>';
+        var next=AF_NEXT[tf];
+        if(next){
+          var nc=document.getElementById('af-'+next); if(nc)nc.classList.remove('locked');
+          var ns=document.getElementById('afs-'+next);
+          if(ns&&ns.innerHTML.indexOf('LOCKED')>=0)ns.innerHTML='<span class="badge amber">UPLOAD</span>';
+        }
+      } else if(perm===false){
+        card.classList.add('rl');
+        if(st)st.innerHTML='<span class="badge red">✕ STAND DOWN</span>';
+      } else {
+        if(st)st.innerHTML='<span class="badge amber">REVIEW</span>';
+        var pp=document.getElementById('afp-'+tf); if(pp)pp.classList.add('show');
+      }
+    });
+    if(curAnalysis.verdict){
+      var exe=curAnalysis.verdict==='EXECUTE';
+      var v=document.getElementById('verdict-big');
+      v.className='verdict-big show '+(exe?'exe':'sd');
+      document.getElementById('v-ico').textContent=exe?'🟢':'🔴';
+      document.getElementById('v-title').textContent=exe?'EXECUTION READY':'STAND DOWN';
+      document.getElementById('v-sub').textContent='Analysis restored from previous session.';
+    }
+    var hasState=Object.values(afRes).some(function(v){return v;});
+    if(hasState)showToast('📊 Analysis restored');
+  } catch(e){console.log('restore err',e);}
+}
+restoreAnalysis();
+
+// Format helper
+function fmt(t){
+  return t.replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')
+    .replace(/✅/g,'<span style="color:#00e87a">✅</span>')
+    .replace(/❌/g,'<span style="color:#ff3355">❌</span>')
+    .replace(/\n\n/g,'<br><br>')
+    .replace(/\n- /g,'<br>• ')
+    .replace(/\n(\d+)\./g,'<br>$1.')
+    .replace(/\n/g,'<br>');
+}
+
+</script>
+</body>
+</html>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -323,368 +531,4 @@ body{background:#0a0800;color:#f5ead0;font-family:'Outfit',sans-serif;height:100
 <!-- PAGE: CALC -->
 <div class="page" id="page-calc">
   <div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">Calculator ✅</div>
-  <div style="padding:0 20px;color:#888;font-size:13px">Calc page loaded correctly</div>
-</div>
-
-<!-- PAGE: JOURNAL -->
-<div class="page" id="page-journal">
-  <div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">Journal ✅</div>
-  <div style="padding:0 20px;color:#888;font-size:13px">Journal page loaded correctly</div>
-</div>
-
-<!-- MORE PAGES (from More menu) -->
-<div class="page" id="page-stats"><div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">Stats ✅</div></div>
-<div class="page" id="page-planner"><div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">Planner ✅</div></div>
-<div class="page" id="page-narrative"><div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">Narrative ✅</div></div>
-<div class="page" id="page-history"><div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">History ✅</div></div>
-<div class="page" id="page-settings"><div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">Settings ✅</div></div>
-
-<!-- MORE MENU -->
-<div id="more-menu" style="display:none;position:fixed;bottom:64px;left:0;right:0;background:#0f0d02;border-top:1px solid #2a2200;padding:12px;z-index:9998">
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
-    <div onclick="swMore('stats')" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;background:#1a1500;border-radius:10px;cursor:pointer;font-size:10px;color:#a89060;touch-action:manipulation"><span style="font-size:22px">📊</span>Stats</div>
-    <div onclick="swMore('planner')" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;background:#1a1500;border-radius:10px;cursor:pointer;font-size:10px;color:#a89060;touch-action:manipulation"><span style="font-size:22px">📅</span>Planner</div>
-    <div onclick="swMore('narrative')" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;background:#1a1500;border-radius:10px;cursor:pointer;font-size:10px;color:#a89060;touch-action:manipulation"><span style="font-size:22px">📝</span>Narrative</div>
-    <div onclick="swMore('history')" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;background:#1a1500;border-radius:10px;cursor:pointer;font-size:10px;color:#a89060;touch-action:manipulation"><span style="font-size:22px">🗂</span>History</div>
-    <div onclick="swMore('settings')" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;background:#1a1500;border-radius:10px;cursor:pointer;font-size:10px;color:#a89060;touch-action:manipulation"><span style="font-size:22px">⚙️</span>Settings</div>
-  </div>
-</div>
-
-<!-- TOAST -->
-<div class="toast" id="toast"></div>
-
-<script>
-// NAV
-function sw(tab) {
-  document.getElementById('more-menu').style.display = 'none';
-  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
-  document.querySelectorAll('.ni').forEach(function(n){ n.classList.remove('act'); });
-  var page = document.getElementById('page-' + tab);
-  if(page) page.classList.add('active');
-  var ni = document.getElementById('ni-' + tab);
-  if(ni) ni.classList.add('act');
-  showToast(tab + ' ✓');
-}
-function swMore(tab) {
-  document.getElementById('more-menu').style.display = 'none';
-  sw(tab);
-}
-function toggleMore() {
-  var m = document.getElementById('more-menu');
-  m.style.display = m.style.display === 'none' ? 'block' : 'none';
-}
-
-// DAY
-var DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
-var day = new Date().getDay();
-var chip = document.getElementById('day-chip');
-chip.textContent = DAYS[day] + (day>=2&&day<=4?' · EXECUTE':day===1?' · ANALYSIS':' · NO TRADE');
-if(day>=2&&day<=4) chip.className='day-chip exec';
-else if(day===5||day===0||day===6) chip.className='day-chip warn';
-
-// SESSIONS
-function renderSess() {
-  var sast = new Date(new Date().getTime() + 2*60*60*1000);
-  var t = sast.getUTCHours()*60 + sast.getUTCMinutes();
-  var hh = String(sast.getUTCHours()).padStart(2,'0');
-  var mm = String(sast.getUTCMinutes()).padStart(2,'0');
-  var ss = String(sast.getUTCSeconds()).padStart(2,'0');
-  var sess = [{n:'London',o:540,c:1080,e:true},{n:'New York',o:840,c:1380,e:true},{n:'Asian',o:0,c:540,e:false}];
-  var html = '';
-  sess.forEach(function(s){
-    var isO = t>=s.o && t<s.c;
-    html += '<div class="sp '+(isO?s.e?'open':'obs':'')+'">'+'<div class="sp-dot"></div>'+s.n+' '+(isO?'OPEN':'CLOSED')+'</div>';
-  });
-  html += '<div class="sp"><div class="sp-dot"></div>SAST '+hh+':'+mm+':'+ss+'</div>';
-  document.getElementById('sess-row').innerHTML = html;
-}
-renderSess();
-setInterval(renderSess, 1000);
-
-// TOAST
-function showToast(msg) {
-  var t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(function(){ t.classList.remove('show'); }, 2000);
-}
-
-// ── ANALYSIS SYSTEM PROMPT ──
-var SYS = 'You are the Pumallen Master Trading System AI — PUMALLEN OS. Strict disciplined trading intelligence for EURUSD pure price action. PHILOSOPHY: Patience. Permission. Structure. Capital protection. CHAIN OF AUTHORITY: MONTHLY=Supreme authority, defines the mission and long-term liquidity objective, no entries. WEEKLY=Strategic planning within the Monthly mission, no execution, cannot contradict Monthly. DAILY=Permission timeframe, conditional on Monthly/Weekly alignment, no daily permission = NO TRADE, revocable if H4/H1 invalidates it. H4=Engineering — builds the execution environment, confirms Level development, must align with Monthly mission. H1=Execution engine needs sweep+BOS+pullback, requires all higher responsibilities to remain valid. M15=Optional precision when H1 unclear — procedural veto only, cannot authorize what H1 rejected, may only decline execution if no valid entry exists. AUTHORITY FLOWS DOWNWARD, EVIDENCE FLOWS UPWARD. 9 CONDITIONS ALL required: 1)Tue-Thu only 2)London or NY session 3)Monthly mission confirmed 4)Weekly plan aligned 5)Daily permission 6)H4 aligned 7)H1 sweep 8)H1 BOS 9)Pullback. ONE fails = STAND DOWN. SESSIONS SAST: London 09-18, NY 14-23. When analyzing charts: identify bias, structure levels, liquidity zones, sweeps, BOS/CHoCH. Be direct, use checkmarks, bold key conclusions, enforce rules always.';
-
-var AF_PROMPTS = {
-  MO: 'Analyze this MONTHLY EURUSD chart. Identify: 1) Long-term directional bias BULLISH/BEARISH/RANGING 2) Major liquidity objective 3) Key structural levels 4) Premium and discount areas. This is the mission timeframe — no entries. Conclude: MONTHLY MISSION: [bias/objective] or NO QUALIFYING MISSION.',
-  W: 'Analyze this WEEKLY EURUSD chart. Monthly mission confirmed above. Identify: 1) Overall bias BULLISH/BEARISH/RANGING 2) Major liquidity zones above and below 3) Key structural levels 4) Does this plan align with the Monthly mission, or conflict with it? Conclude: WEEKLY PLAN: [direction]. ALIGNED WITH MONTHLY: YES or NO (Mission Conflict).',
-  D: 'Analyze this DAILY EURUSD chart. Monthly mission and Weekly plan confirmed above. Check: 1) Daily aligned with Weekly plan (and Monthly mission)? 2) Price reacted from Weekly zone? 3) Daily BOS in Weekly direction? 4) Permission granted? Conclude: DAILY PERMISSION: GRANTED or DENIED.',
-  H4: 'Analyze this H4 EURUSD chart. Higher timeframes aligned. Check: 1) H4 Level — L1 Pullback, L2 Expansion, or L3 Distribution? 2) Current leg direction 3) Key H4 levels 4) Any H4 sweeps 5) Does structure still serve the Monthly mission? Conclude: H4 STRUCTURE: ALIGNED or NOT ALIGNED.',
-  H1: 'Analyze this H1 EURUSD chart. All higher TFs aligned (Monthly, Weekly, Daily, H4). Check: 1) H1 liquidity sweep occurred? 2) BOS or CHoCH after sweep? 3) Clean pullback entry available? 4) Entry area, SL, target? 5) Session London or NY? Conclude: H1 ENTRY SIGNAL: CONFIRMED or NOT CONFIRMED. EXECUTE or STAND DOWN.',
-  M15: 'Analyze this M15 EURUSD chart. H1 was unclear, dropping to M15 for precision only. Higher TF bias valid and unchanged — M15 cannot authorize what H1 rejected. Check: 1) M15 sweep in line with H1 bias? 2) M15 BOS or CHoCH? 3) Clean pullback entry? 4) Precise entry, tight SL, target to H1 liquidity? Conclude: M15 PRECISION ENTRY: CONFIRMED or NOT CONFIRMED.'
-};
-
-var AF_NEXT = {MO:'W', W:'D', D:'H4', H4:'H1', H1:null, M15:null};
-var afImgs = {MO:null, W:null, D:null, H4:null, H1:null, M15:null};
-var afRes = JSON.parse(localStorage.getItem('pm_afRes') || 'null') || {MO:null,W:null,D:null,H4:null,H1:null,M15:null};
-var afPerm = JSON.parse(localStorage.getItem('pm_afPerm') || 'null') || {MO:null,W:null,D:null,H4:null,H1:null,M15:null};
-var curAnalysis = JSON.parse(localStorage.getItem('pm_curAnalysis') || 'null') || {date:null,tfs:{},verdict:null};
-var afBusy = false;
-var API_KEY = localStorage.getItem('pm_apikey') || '';
-
-// System status
-function updateSysStatus() {
-  var day = new Date().getDay();
-  var sast = new Date(new Date().getTime() + 2*60*60*1000);
-  var t = sast.getUTCHours()*60 + sast.getUTCMinutes();
-  var isExec = day>=2 && day<=4;
-  var isLon = t>=540 && t<1080;
-  var isNY = t>=840 && t<1380;
-  var status, color;
-  if(day===5||day===6||day===0){status='⛔ NO TRADE — WEEKEND/FRIDAY';color='#ff3355';}
-  else if(day===1){status='📋 ANALYSIS ONLY — MONDAY';color='#ffaa00';}
-  else if(!isExec){status='⛔ NO TRADE DAY';color='#ff3355';}
-  else if(!isLon&&!isNY){status='⏳ WAITING — NO VALID SESSION YET';color='#ffaa00';}
-  else{status='✅ ACTIVE — EXECUTION WINDOW OPEN';color='#00e87a';}
-  var el = document.getElementById('sys-status');
-  if(el){el.textContent=status;el.style.color=color;el.style.borderColor=color==='#00e87a'?'rgba(0,232,122,.3)':color==='#ff3355'?'rgba(255,51,85,.3)':'rgba(255,170,0,.3)';}
-}
-updateSysStatus();
-setInterval(updateSysStatus, 30000);
-
-// Upload handler
-function afUp(e, tf) {
-  var f = e.target.files[0]; if(!f) return;
-  afBusy = false;
-  var r = new FileReader();
-  r.onload = function(ev) {
-    var parts = ev.target.result.split(',');
-    var mt = (parts[0].match(/:(.*?);/) || [,'image/jpeg'])[1];
-    var b64 = parts[1];
-    afImgs[tf] = {base64:b64, mediaType:mt, src:ev.target.result};
-    var imgEl = document.getElementById('afi-'+tf);
-    if(imgEl){imgEl.src=ev.target.result;imgEl.classList.add('show');}
-    document.getElementById('afbtn-'+tf).disabled = false;
-    document.getElementById('afs-'+tf).innerHTML = '<span class="badge amber">READY</span>';
-    showToast('Chart loaded — tap Analyze');
-    // Compress and save
-    try {
-      var cv = document.createElement('canvas');
-      var ti = new Image();
-      ti.onload = function(){
-        var MX=600,w=ti.width,h=ti.height;
-        if(w>MX){h=Math.round(h*MX/w);w=MX;}
-        cv.width=w;cv.height=h;
-        cv.getContext('2d').drawImage(ti,0,0,w,h);
-        var comp = cv.toDataURL('image/jpeg',0.6);
-        var sv = JSON.parse(localStorage.getItem('pm_afImgSrc')||'{}');
-        sv[tf]=comp;
-        try{localStorage.setItem('pm_afImgSrc',JSON.stringify(sv));}catch(e2){}
-      };
-      ti.src = ev.target.result;
-    } catch(e){}
-  };
-  r.readAsDataURL(f);
-  setTimeout(function(){try{e.target.value='';}catch(ex){}},300);
-}
-
-// Run analysis
-async function afRun(tf) {
-  if(!afImgs[tf]){showToast('Upload chart first');return;}
-  if(afBusy){showToast('Analysis running...');return;}
-  if(!API_KEY){showToast('Enter API key in Settings');sw('settings');return;}
-  afBusy = true;
-  var btn = document.getElementById('afbtn-'+tf);
-  btn.disabled=true; btn.textContent='Analyzing...';
-  document.getElementById('afl-'+tf).classList.add('show');
-  document.getElementById('afr-'+tf).classList.remove('show');
-  document.getElementById('afp-'+tf).classList.remove('show');
-  document.getElementById('afs-'+tf).innerHTML='<span class="badge amber">ANALYZING...</span>';
-  try {
-    var res = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-opus-4-5',max_tokens:1000,system:SYS,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:afImgs[tf].mediaType,data:afImgs[tf].base64}},{type:'text',text:AF_PROMPTS[tf]}]}]})
-    });
-    if(!res.ok){var ed=await res.json().catch(function(){return{};});throw new Error(res.status+': '+(ed.error&&ed.error.message||'Check API key in Settings'));}
-    var d = await res.json();
-    var reply = (d.content||[]).map(function(b){return b.text||'';}).join('') || 'No response.';
-    afRes[tf]=reply;
-    if(!curAnalysis.tfs[tf])curAnalysis.tfs[tf]={};
-    curAnalysis.tfs[tf].result=reply;
-    localStorage.setItem('pm_afRes',JSON.stringify(afRes));
-    localStorage.setItem('pm_curAnalysis',JSON.stringify(curAnalysis));
-    document.getElementById('afl-'+tf).classList.remove('show');
-    var rb = document.getElementById('afr-'+tf);
-    rb.innerHTML=fmt(reply); rb.classList.add('show');
-    document.getElementById('afs-'+tf).innerHTML='<span class="badge amber">REVIEW</span>';
-    btn.textContent='Re-analyze'; btn.disabled=false;
-    setTimeout(function(){
-      document.getElementById('afp-'+tf).classList.add('show');
-      rb.scrollIntoView({behavior:'smooth',block:'start'});
-    },1500);
-  } catch(err) {
-    document.getElementById('afl-'+tf).classList.remove('show');
-    var rb2=document.getElementById('afr-'+tf);
-    rb2.innerHTML='<span style="color:#ff3355">⚠ '+err.message+'</span>';
-    rb2.classList.add('show');
-    document.getElementById('afs-'+tf).innerHTML='<span class="badge red">ERROR</span>';
-    btn.textContent='Retry'; btn.disabled=false;
-  }
-  afBusy=false;
-}
-
-// Grant permission
-function afGrant(tf, ok) {
-  document.getElementById('afp-'+tf).classList.remove('show');
-  var card = document.getElementById('af-'+tf);
-  if(!curAnalysis.tfs[tf])curAnalysis.tfs[tf]={};
-  curAnalysis.tfs[tf].permission=ok;
-  afPerm[tf]=ok;
-  localStorage.setItem('pm_afPerm',JSON.stringify(afPerm));
-  localStorage.setItem('pm_curAnalysis',JSON.stringify(curAnalysis));
-  if(ok){
-    card.classList.remove('rl'); card.classList.add('gl');
-    document.getElementById('afs-'+tf).innerHTML='<span class="badge green">✓ GREEN LIGHT</span>';
-    var next = AF_NEXT[tf];
-    if(next){
-      var nc = document.getElementById('af-'+next);
-      if(nc){nc.classList.remove('locked');nc.style.display='block';}
-      document.getElementById('afs-'+next).innerHTML='<span class="badge amber">UPLOAD</span>';
-      showToast('✅ '+tf+' confirmed — '+next+' unlocked');
-      setTimeout(function(){nc.scrollIntoView({behavior:'smooth',block:'start'});},300);
-    } else {
-      showVerdict(true);
-    }
-  } else {
-    card.classList.remove('gl'); card.classList.add('rl');
-    document.getElementById('afs-'+tf).innerHTML='<span class="badge red">✕ STAND DOWN</span>';
-    showVerdict(false,tf);
-  }
-}
-
-// Unlock M15
-function unlockM15() {
-  document.getElementById('afp-H1').classList.remove('show');
-  var card = document.getElementById('af-M15');
-  var conn = document.getElementById('m15-conn');
-  card.style.display='block'; conn.style.display='flex';
-  setTimeout(function(){
-    card.classList.remove('locked');
-    document.getElementById('afs-M15').innerHTML='<span class="badge amber">UPLOAD</span>';
-    showToast('🔍 H1 unclear — M15 unlocked');
-    card.scrollIntoView({behavior:'smooth',block:'start'});
-  },200);
-  document.getElementById('afs-H1').innerHTML='<span class="badge amber">→ M15</span>';
-}
-
-// Show final verdict
-function showVerdict(exe, tf) {
-  curAnalysis.verdict = exe?'EXECUTE':'STAND DOWN';
-  curAnalysis.date = new Date().toLocaleString();
-  localStorage.setItem('pm_curAnalysis',JSON.stringify(curAnalysis));
-  var v = document.getElementById('verdict-big');
-  v.className='verdict-big show '+(exe?'exe':'sd');
-  document.getElementById('v-ico').textContent=exe?'🟢':'🔴';
-  document.getElementById('v-title').textContent=exe?'EXECUTION READY':'STAND DOWN';
-  document.getElementById('v-sub').textContent=exe
-    ?'All timeframes confirmed. MO→W→D→H4→H1 aligned. Execute with discipline. No emotional exits.'
-    :'Permission denied at '+(tf||'this')+' timeframe. Market has not clearly spoken. Stand down — protect capital.';
-  v.scrollIntoView({behavior:'smooth',block:'center'});
-  // Save to history
-  var h={id:Date.now(),date:curAnalysis.date,tfs:JSON.parse(JSON.stringify(curAnalysis.tfs)),verdict:curAnalysis.verdict};
-  var hist=JSON.parse(localStorage.getItem('pm_hist')||'[]');
-  hist.unshift(h); if(hist.length>50)hist=hist.slice(0,50);
-  localStorage.setItem('pm_hist',JSON.stringify(hist));
-}
-
-// Reset analysis
-function afReset() {
-  afImgs={MO:null,W:null,D:null,H4:null,H1:null,M15:null};
-  afRes={MO:null,W:null,D:null,H4:null,H1:null,M15:null};
-  afPerm={MO:null,W:null,D:null,H4:null,H1:null,M15:null};
-  afBusy=false;
-  curAnalysis={date:null,tfs:{},verdict:null};
-  localStorage.removeItem('pm_afRes');localStorage.removeItem('pm_afPerm');
-  localStorage.removeItem('pm_curAnalysis');localStorage.removeItem('pm_afImgSrc');
-  ['MO','W','D','H4','H1','M15'].forEach(function(tf,i){
-    var card=document.getElementById('af-'+tf); if(!card)return;
-    card.className='af-card'+(i>0?' locked':'');
-    if(tf==='M15'){card.style.display='none';}
-    var img=document.getElementById('afi-'+tf); if(img){img.src='';img.classList.remove('show');}
-    var rb=document.getElementById('afr-'+tf); if(rb){rb.classList.remove('show');rb.innerHTML='';}
-    var pp=document.getElementById('afp-'+tf); if(pp)pp.classList.remove('show');
-    var ll=document.getElementById('afl-'+tf); if(ll)ll.classList.remove('show');
-    var btn=document.getElementById('afbtn-'+tf); if(btn){btn.disabled=true;btn.textContent='Analyze';}
-    var st=document.getElementById('afs-'+tf);
-    if(st)st.innerHTML=i===0?'<span class="badge amber">UPLOAD</span>':'<span class="badge muted">🔒 LOCKED</span>';
-  });
-  document.getElementById('m15-conn').style.display='none';
-  document.getElementById('verdict-big').className='verdict-big';
-  document.getElementById('page-analysis').scrollTop=0;
-  showToast('Analysis reset');
-}
-
-// Restore analysis on load
-function restoreAnalysis() {
-  try {
-    var imgs=JSON.parse(localStorage.getItem('pm_afImgSrc')||'{}');
-    Object.keys(imgs).forEach(function(tf){
-      if(!imgs[tf])return;
-      var imgEl=document.getElementById('afi-'+tf);
-      if(imgEl){imgEl.src=imgs[tf];imgEl.classList.add('show');}
-      var src=imgs[tf];
-      afImgs[tf]={base64:src.split(',')[1],mediaType:(src.match(/data:(.*?);/)||[,'image/jpeg'])[1],src:src};
-      var btn=document.getElementById('afbtn-'+tf); if(btn)btn.disabled=false;
-    });
-    ['MO','W','D','H4','H1','M15'].forEach(function(tf,i){
-      var result=afRes[tf], perm=afPerm[tf];
-      if(!result)return;
-      var card=document.getElementById('af-'+tf); if(!card)return;
-      if(tf==='M15'){card.style.display='block';document.getElementById('m15-conn').style.display='flex';}
-      card.classList.remove('locked');
-      var rb=document.getElementById('afr-'+tf); if(rb){rb.innerHTML=fmt(result);rb.classList.add('show');}
-      var btn=document.getElementById('afbtn-'+tf); if(btn){btn.disabled=false;btn.textContent='Re-analyze';}
-      var st=document.getElementById('afs-'+tf);
-      if(perm===true){
-        card.classList.add('gl');
-        if(st)st.innerHTML='<span class="badge green">✓ GREEN LIGHT</span>';
-        var next=AF_NEXT[tf];
-        if(next){
-          var nc=document.getElementById('af-'+next); if(nc)nc.classList.remove('locked');
-          var ns=document.getElementById('afs-'+next);
-          if(ns&&ns.innerHTML.indexOf('LOCKED')>=0)ns.innerHTML='<span class="badge amber">UPLOAD</span>';
-        }
-      } else if(perm===false){
-        card.classList.add('rl');
-        if(st)st.innerHTML='<span class="badge red">✕ STAND DOWN</span>';
-      } else {
-        if(st)st.innerHTML='<span class="badge amber">REVIEW</span>';
-        var pp=document.getElementById('afp-'+tf); if(pp)pp.classList.add('show');
-      }
-    });
-    if(curAnalysis.verdict){
-      var exe=curAnalysis.verdict==='EXECUTE';
-      var v=document.getElementById('verdict-big');
-      v.className='verdict-big show '+(exe?'exe':'sd');
-      document.getElementById('v-ico').textContent=exe?'🟢':'🔴';
-      document.getElementById('v-title').textContent=exe?'EXECUTION READY':'STAND DOWN';
-      document.getElementById('v-sub').textContent='Analysis restored from previous session.';
-    }
-    var hasState=Object.values(afRes).some(function(v){return v;});
-    if(hasState)showToast('📊 Analysis restored');
-  } catch(e){console.log('restore err',e);}
-}
-restoreAnalysis();
-
-// Format helper
-function fmt(t){
-  return t.replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')
-    .replace(/✅/g,'<span style="color:#00e87a">✅</span>')
-    .replace(/❌/g,'<span style="color:#ff3355">❌</span>')
-    .replace(/\n\n/g,'<br><br>')
-    .replace(/\n- /g,'<br>• ')
-    .replace(/\n(\d+)\./g,'<br>$1.')
-    .replace(/\n/g,'<br>');
-}
-
-</script>
-</body>
-</html>
+  <div style="padding:0 20px;colo
