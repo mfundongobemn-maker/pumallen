@@ -1,5 +1,4 @@
-
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -41,6 +40,7 @@ body{background:#0a0800;color:#f5ead0;font-family:'Outfit',sans-serif;height:100
 .page{display:none;position:fixed;top:92px;left:0;right:0;bottom:64px;overflow-y:auto;padding:12px 14px 20px;scrollbar-width:none}
 .page::-webkit-scrollbar{display:none}
 .page.active{display:block}
+#page-chat.active{display:flex}
 
 /* TOAST */
 .toast{position:fixed;bottom:74px;left:50%;transform:translateX(-50%) translateY(10px);background:#1a1500;border:1px solid #f0c040;color:#f5ead0;font-size:13px;font-weight:600;padding:8px 18px;z-index:9998;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;border-radius:20px}
@@ -310,9 +310,19 @@ body{background:#0a0800;color:#f5ead0;font-family:'Outfit',sans-serif;height:100
 </div>
 
 <!-- PAGE: CHAT -->
-<div class="page" id="page-chat">
-  <div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">AI Chat ✅</div>
-  <div style="padding:0 20px;color:#888;font-size:13px">Chat page loaded correctly</div>
+<div class="page" id="page-chat" style="flex-direction:column;height:100%">
+  <div style="padding:16px 16px 10px;flex-shrink:0">
+    <div style="color:#f0c040;font-size:18px;font-weight:800">AI Chat 💬</div>
+    <div style="color:#5a4a30;font-size:11px;margin-top:2px">Ask about the current analysis or PMTS rules</div>
+  </div>
+  <div id="chat-thread" style="flex:1;overflow-y:auto;padding:0 16px 12px;display:flex;flex-direction:column;gap:10px"></div>
+  <div style="padding:10px 16px 16px;flex-shrink:0;display:flex;gap:8px;border-top:1px solid #2a2200">
+    <input type="text" id="chat-input" placeholder="Ask a question..." autocomplete="off"
+      style="flex:1;padding:11px 13px;background:#1a1500;border:1.5px solid rgba(212,160,23,.25);border-radius:20px;color:#f5ead0;font-family:'Outfit',sans-serif;font-size:13px"
+      onkeydown="if(event.key==='Enter')sendChatMsg()"/>
+    <button onclick="sendChatMsg()" id="chat-send-btn"
+      style="padding:11px 16px;background:#f0c040;border:none;border-radius:20px;color:#0a0800;font-weight:800;cursor:pointer;touch-action:manipulation">➤</button>
+  </div>
 </div>
 
 <!-- PAGE: CHECKLIST -->
@@ -385,6 +395,7 @@ function sw(tab) {
   var ni = document.getElementById('ni-' + tab);
   if(ni) ni.classList.add('act');
   if(tab === 'settings') initSettingsPage();
+  if(tab === 'chat') renderChat();
   showToast(tab + ' ✓');
 }
 function swMore(tab) {
@@ -449,7 +460,96 @@ var afRes = JSON.parse(localStorage.getItem('pm_afRes') || 'null') || {MO:null,W
 var afPerm = JSON.parse(localStorage.getItem('pm_afPerm') || 'null') || {MO:null,W:null,D:null,H4:null,H1:null,M15:null};
 var curAnalysis = JSON.parse(localStorage.getItem('pm_curAnalysis') || 'null') || {date:null,tfs:{},verdict:null};
 var afBusy = false;
+// ── AI CHAT ──
 var API_KEY = localStorage.getItem('pm_apikey') || '';
+var chatHist = JSON.parse(localStorage.getItem('pm_chatHist') || '[]');
+var chatBusy = false;
+
+function buildChatContext() {
+  var lines = ['You are the Pumallen OS trading assistant. Answer questions about the current PMTS analysis and the PMTS Chain of Authority (Monthly=Supreme, Weekly=Strategic Planning, Daily=Permission, H4=Engineering, H1=Execution, M15=Precision). Be direct and concise.'];
+  var order = ['MO','W','D','H4','H1','M15'];
+  var names = {MO:'Monthly',W:'Weekly',D:'Daily',H4:'H4',H1:'H1',M15:'M15'};
+  var any = false;
+  order.forEach(function(tf){
+    if(curAnalysis.tfs[tf] && curAnalysis.tfs[tf].result){
+      any = true;
+      lines.push('--- '+names[tf]+' ANALYSIS ---');
+      lines.push(curAnalysis.tfs[tf].result);
+      if(curAnalysis.tfs[tf].permission!==undefined){
+        lines.push(names[tf]+' PERMISSION: '+(curAnalysis.tfs[tf].permission?'GRANTED':'DENIED'));
+      }
+    }
+  });
+  if(curAnalysis.verdict){ lines.push('CURRENT VERDICT: '+curAnalysis.verdict); }
+  if(!any){ lines.push('No analysis has been run yet this session.'); }
+  return lines.join('\n');
+}
+
+function renderChat() {
+  var thread = document.getElementById('chat-thread');
+  if(!thread) return;
+  thread.innerHTML = '';
+  if(chatHist.length===0){
+    thread.innerHTML = '<div style="color:#5a4a30;font-size:12px;text-align:center;padding:30px 10px;line-height:1.6">No messages yet.<br>Ask something like "why did Daily stand down?"</div>';
+    return;
+  }
+  chatHist.forEach(function(m){
+    var bubble = document.createElement('div');
+    var isUser = m.role==='user';
+    bubble.style.cssText = 'max-width:85%;padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.5;white-space:pre-wrap;'+
+      (isUser
+        ? 'align-self:flex-end;background:#f0c040;color:#0a0800;border-bottom-right-radius:4px'
+        : 'align-self:flex-start;background:#1a1500;color:#f5ead0;border:1px solid #2a2200;border-bottom-left-radius:4px');
+    bubble.textContent = m.content;
+    thread.appendChild(bubble);
+  });
+  thread.scrollTop = thread.scrollHeight;
+}
+
+async function sendChatMsg() {
+  var inp = document.getElementById('chat-input');
+  var msg = inp.value.trim();
+  if(!msg) return;
+  if(chatBusy){ showToast('Please wait...'); return; }
+  if(!API_KEY){ showToast('Enter API key in Settings'); sw('settings'); return; }
+
+  chatHist.push({role:'user', content:msg});
+  localStorage.setItem('pm_chatHist', JSON.stringify(chatHist));
+  inp.value='';
+  renderChat();
+
+  chatBusy = true;
+  var btn = document.getElementById('chat-send-btn');
+  btn.disabled = true; btn.textContent='...';
+
+  var apiMessages = chatHist.slice(-10).map(function(m){ return {role:m.role, content:m.content}; });
+
+  try {
+    var res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-5',max_tokens:800,system:buildChatContext(),messages:apiMessages})
+    });
+    if(!res.ok){ var ed=await res.json().catch(function(){return{};}); throw new Error(res.status+': '+(ed.error&&ed.error.message||'Request failed')); }
+    var d = await res.json();
+    var reply = (d.content||[]).map(function(b){return b.text||'';}).join('') || 'No response.';
+    chatHist.push({role:'assistant', content:reply});
+    localStorage.setItem('pm_chatHist', JSON.stringify(chatHist));
+    renderChat();
+  } catch(err) {
+    chatHist.push({role:'assistant', content:'⚠ Error: '+err.message});
+    localStorage.setItem('pm_chatHist', JSON.stringify(chatHist));
+    renderChat();
+  }
+  chatBusy = false;
+  btn.disabled = false; btn.textContent='➤';
+}
+
+function clearChat() {
+  chatHist = [];
+  localStorage.removeItem('pm_chatHist');
+  renderChat();
+}
 
 function saveApiKey() {
   var val = document.getElementById('apikey-input').value.trim();
@@ -552,7 +652,7 @@ async function afRun(tf) {
     var res = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-opus-4-5',max_tokens:1000,system:SYS,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:afImgs[tf].mediaType,data:afImgs[tf].base64}},{type:'text',text:AF_PROMPTS[tf]}]}]})
+      body:JSON.stringify({model:'claude-sonnet-5',max_tokens:1000,system:SYS,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:afImgs[tf].mediaType,data:afImgs[tf].base64}},{type:'text',text:AF_PROMPTS[tf]}]}]})
     });
     if(!res.ok){var ed=await res.json().catch(function(){return{};});throw new Error(res.status+': '+(ed.error&&ed.error.message||'Check API key in Settings'));}
     var d = await res.json();
@@ -739,3 +839,7 @@ function fmt(t){
 </script>
 </body>
 </html>
+
+
+
+
