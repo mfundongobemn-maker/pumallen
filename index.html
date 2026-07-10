@@ -133,14 +133,41 @@ body{background:#0a0800;color:#f5ead0;font-family:'Outfit',sans-serif;height:100
 <div class="page active" id="page-analysis">
   <div class="sys-status" id="sys-status">LOADING...</div>
 
+  <!-- MONTHLY -->
+  <div class="af-card" id="af-MO">
+    <div class="af-head">
+      <div class="af-head-l">
+        <div class="af-num" id="afn-MO">MO</div>
+        <div><div class="af-tf">Monthly</div><div class="af-sub">Mission Timeframe · Supreme Authority</div></div>
+      </div>
+      <div id="afs-MO"><span class="badge amber">UPLOAD</span></div>
+    </div>
+    <div class="af-body">
+      <img class="af-img" id="afi-MO" src="" alt=""/>
+      <div style="display:flex;gap:7px">
+        <label for="aff-MO" class="upload-btn">📷 Upload Monthly Chart</label>
+        <input type="file" id="aff-MO" accept="image/*" style="display:none" onchange="afUp(event,'MO')"/>
+        <button class="analyze-btn" id="afbtn-MO" onclick="afRun('MO')" disabled>Analyze</button>
+      </div>
+      <div class="af-loading" id="afl-MO"><div class="dots"><span></span><span></span><span></span></div><span>Analyzing Monthly...</span></div>
+      <div class="af-result" id="afr-MO"></div>
+      <div class="af-perm" id="afp-MO">
+        <div class="af-perm-lbl">Monthly mission:</div>
+        <button class="perm-yes" onclick="afGrant('MO',true)">✅ Monthly Mission Confirmed — Unlock Weekly</button>
+        <button class="perm-no" onclick="afGrant('MO',false)">🚫 No Qualifying Mission — Stand Down</button>
+      </div>
+    </div>
+  </div>
+  <div class="af-conn"><div class="af-conn-line"></div></div>
+
   <!-- WEEKLY -->
-  <div class="af-card" id="af-W">
+  <div class="af-card locked" id="af-W">
     <div class="af-head">
       <div class="af-head-l">
         <div class="af-num" id="afn-W">W</div>
-        <div><div class="af-tf">Weekly</div><div class="af-sub">Master Controller · Final Authority</div></div>
+        <div><div class="af-tf">Weekly</div><div class="af-sub">Strategic Planning · Refine the Mission</div></div>
       </div>
-      <div id="afs-W"><span class="badge amber">UPLOAD</span></div>
+      <div id="afs-W"><span class="badge muted">🔒 LOCKED</span></div>
     </div>
     <div class="af-body">
       <img class="af-img" id="afi-W" src="" alt=""/>
@@ -153,8 +180,8 @@ body{background:#0a0800;color:#f5ead0;font-family:'Outfit',sans-serif;height:100
       <div class="af-result" id="afr-W"></div>
       <div class="af-perm" id="afp-W">
         <div class="af-perm-lbl">Weekly decision:</div>
-        <button class="perm-yes" onclick="afGrant('W',true)">✅ Weekly Bias Confirmed — Unlock Daily</button>
-        <button class="perm-no" onclick="afGrant('W',false)">🚫 Not Clear — Stand Down</button>
+        <button class="perm-yes" onclick="afGrant('W',true)">✅ Weekly Plan Aligned — Unlock Daily</button>
+        <button class="perm-no" onclick="afGrant('W',false)">🚫 Mission Conflict — Stand Down</button>
       </div>
     </div>
   </div>
@@ -192,7 +219,7 @@ body{background:#0a0800;color:#f5ead0;font-family:'Outfit',sans-serif;height:100
     <div class="af-head">
       <div class="af-head-l">
         <div class="af-num" id="afn-H4">H4</div>
-        <div><div class="af-tf">H4</div><div class="af-sub">Structure Engine · Map the Leg</div></div>
+        <div><div class="af-tf">H4</div><div class="af-sub">Engineering · Build the Execution Environment</div></div>
       </div>
       <div id="afs-H4"><span class="badge muted">🔒 LOCKED</span></div>
     </div>
@@ -383,20 +410,21 @@ function showToast(msg) {
 }
 
 // ── ANALYSIS SYSTEM PROMPT ──
-var SYS = 'You are the Pumallen Master Trading System AI — PUMALLEN OS. Strict disciplined trading intelligence for EURUSD pure price action. PHILOSOPHY: Patience. Permission. Structure. Capital protection. TIMEFRAMES: WEEKLY=Master controller, final authority. DAILY=Permission timeframe, no daily permission = NO TRADE. H4=Structure engine L1/L2/L3. H1=Execution engine needs sweep+BOS+pullback. M15=Optional precision when H1 unclear. 8 CONDITIONS ALL required: 1)Tue-Thu only 2)London or NY session 3)Weekly bias 4)Daily permission 5)H4 aligned 6)H1 sweep 7)H1 BOS 8)Pullback. ONE fails = STAND DOWN. SESSIONS SAST: London 09-18, NY 14-23. When analyzing charts: identify bias, structure levels, liquidity zones, sweeps, BOS/CHoCH. Be direct, use checkmarks, bold key conclusions, enforce rules always.';
+var SYS = 'You are the Pumallen Master Trading System AI — PUMALLEN OS. Strict disciplined trading intelligence for EURUSD pure price action. PHILOSOPHY: Patience. Permission. Structure. Capital protection. CHAIN OF AUTHORITY: MONTHLY=Supreme authority, defines the mission and long-term liquidity objective, no entries. WEEKLY=Strategic planning within the Monthly mission, no execution, cannot contradict Monthly. DAILY=Permission timeframe, conditional on Monthly/Weekly alignment, no daily permission = NO TRADE, revocable if H4/H1 invalidates it. H4=Engineering — builds the execution environment, confirms Level development, must align with Monthly mission. H1=Execution engine needs sweep+BOS+pullback, requires all higher responsibilities to remain valid. M15=Optional precision when H1 unclear — procedural veto only, cannot authorize what H1 rejected, may only decline execution if no valid entry exists. AUTHORITY FLOWS DOWNWARD, EVIDENCE FLOWS UPWARD. 9 CONDITIONS ALL required: 1)Tue-Thu only 2)London or NY session 3)Monthly mission confirmed 4)Weekly plan aligned 5)Daily permission 6)H4 aligned 7)H1 sweep 8)H1 BOS 9)Pullback. ONE fails = STAND DOWN. SESSIONS SAST: London 09-18, NY 14-23. When analyzing charts: identify bias, structure levels, liquidity zones, sweeps, BOS/CHoCH. Be direct, use checkmarks, bold key conclusions, enforce rules always.';
 
 var AF_PROMPTS = {
-  W: 'Analyze this WEEKLY EURUSD chart. Identify: 1) Overall bias BULLISH/BEARISH/RANGING 2) Major liquidity zones above and below 3) Key structural levels 4) Premium and discount areas. Conclude: WEEKLY BIAS: [direction]. PROCEED TO DAILY: YES or NO.',
-  D: 'Analyze this DAILY EURUSD chart. Weekly bias confirmed above. Check: 1) Daily aligned with Weekly? 2) Price reacted from Weekly zone? 3) Daily BOS in Weekly direction? 4) Permission granted? Conclude: DAILY PERMISSION: GRANTED or DENIED.',
-  H4: 'Analyze this H4 EURUSD chart. Higher timeframes aligned. Check: 1) H4 Level — L1 Pullback, L2 Expansion, or L3 Distribution? 2) Current leg direction 3) Key H4 levels 4) Any H4 sweeps. Conclude: H4 STRUCTURE: ALIGNED or NOT ALIGNED.',
-  H1: 'Analyze this H1 EURUSD chart. All higher TFs aligned. Check: 1) H1 liquidity sweep occurred? 2) BOS or CHoCH after sweep? 3) Clean pullback entry available? 4) Entry area, SL, target? 5) Session London or NY? Conclude: H1 ENTRY SIGNAL: CONFIRMED or NOT CONFIRMED. EXECUTE or STAND DOWN.',
-  M15: 'Analyze this M15 EURUSD chart. H1 was unclear, dropping to M15 for precision. Higher TF bias valid. Check: 1) M15 sweep in line with H1 bias? 2) M15 BOS or CHoCH? 3) Clean pullback entry? 4) Precise entry, tight SL, target to H1 liquidity? Conclude: M15 PRECISION ENTRY: CONFIRMED or NOT CONFIRMED.'
+  MO: 'Analyze this MONTHLY EURUSD chart. Identify: 1) Long-term directional bias BULLISH/BEARISH/RANGING 2) Major liquidity objective 3) Key structural levels 4) Premium and discount areas. This is the mission timeframe — no entries. Conclude: MONTHLY MISSION: [bias/objective] or NO QUALIFYING MISSION.',
+  W: 'Analyze this WEEKLY EURUSD chart. Monthly mission confirmed above. Identify: 1) Overall bias BULLISH/BEARISH/RANGING 2) Major liquidity zones above and below 3) Key structural levels 4) Does this plan align with the Monthly mission, or conflict with it? Conclude: WEEKLY PLAN: [direction]. ALIGNED WITH MONTHLY: YES or NO (Mission Conflict).',
+  D: 'Analyze this DAILY EURUSD chart. Monthly mission and Weekly plan confirmed above. Check: 1) Daily aligned with Weekly plan (and Monthly mission)? 2) Price reacted from Weekly zone? 3) Daily BOS in Weekly direction? 4) Permission granted? Conclude: DAILY PERMISSION: GRANTED or DENIED.',
+  H4: 'Analyze this H4 EURUSD chart. Higher timeframes aligned. Check: 1) H4 Level — L1 Pullback, L2 Expansion, or L3 Distribution? 2) Current leg direction 3) Key H4 levels 4) Any H4 sweeps 5) Does structure still serve the Monthly mission? Conclude: H4 STRUCTURE: ALIGNED or NOT ALIGNED.',
+  H1: 'Analyze this H1 EURUSD chart. All higher TFs aligned (Monthly, Weekly, Daily, H4). Check: 1) H1 liquidity sweep occurred? 2) BOS or CHoCH after sweep? 3) Clean pullback entry available? 4) Entry area, SL, target? 5) Session London or NY? Conclude: H1 ENTRY SIGNAL: CONFIRMED or NOT CONFIRMED. EXECUTE or STAND DOWN.',
+  M15: 'Analyze this M15 EURUSD chart. H1 was unclear, dropping to M15 for precision only. Higher TF bias valid and unchanged — M15 cannot authorize what H1 rejected. Check: 1) M15 sweep in line with H1 bias? 2) M15 BOS or CHoCH? 3) Clean pullback entry? 4) Precise entry, tight SL, target to H1 liquidity? Conclude: M15 PRECISION ENTRY: CONFIRMED or NOT CONFIRMED.'
 };
 
-var AF_NEXT = {W:'D', D:'H4', H4:'H1', H1:null, M15:null};
-var afImgs = {W:null, D:null, H4:null, H1:null, M15:null};
-var afRes = JSON.parse(localStorage.getItem('pm_afRes') || 'null') || {W:null,D:null,H4:null,H1:null,M15:null};
-var afPerm = JSON.parse(localStorage.getItem('pm_afPerm') || 'null') || {W:null,D:null,H4:null,H1:null,M15:null};
+var AF_NEXT = {MO:'W', W:'D', D:'H4', H4:'H1', H1:null, M15:null};
+var afImgs = {MO:null, W:null, D:null, H4:null, H1:null, M15:null};
+var afRes = JSON.parse(localStorage.getItem('pm_afRes') || 'null') || {MO:null,W:null,D:null,H4:null,H1:null,M15:null};
+var afPerm = JSON.parse(localStorage.getItem('pm_afPerm') || 'null') || {MO:null,W:null,D:null,H4:null,H1:null,M15:null};
 var curAnalysis = JSON.parse(localStorage.getItem('pm_curAnalysis') || 'null') || {date:null,tfs:{},verdict:null};
 var afBusy = false;
 var API_KEY = localStorage.getItem('pm_apikey') || '';
@@ -557,7 +585,7 @@ function showVerdict(exe, tf) {
   document.getElementById('v-ico').textContent=exe?'🟢':'🔴';
   document.getElementById('v-title').textContent=exe?'EXECUTION READY':'STAND DOWN';
   document.getElementById('v-sub').textContent=exe
-    ?'All timeframes confirmed. W→D→H4→H1 aligned. Execute with discipline. No emotional exits.'
+    ?'All timeframes confirmed. MO→W→D→H4→H1 aligned. Execute with discipline. No emotional exits.'
     :'Permission denied at '+(tf||'this')+' timeframe. Market has not clearly spoken. Stand down — protect capital.';
   v.scrollIntoView({behavior:'smooth',block:'center'});
   // Save to history
@@ -569,14 +597,14 @@ function showVerdict(exe, tf) {
 
 // Reset analysis
 function afReset() {
-  afImgs={W:null,D:null,H4:null,H1:null,M15:null};
-  afRes={W:null,D:null,H4:null,H1:null,M15:null};
-  afPerm={W:null,D:null,H4:null,H1:null,M15:null};
+  afImgs={MO:null,W:null,D:null,H4:null,H1:null,M15:null};
+  afRes={MO:null,W:null,D:null,H4:null,H1:null,M15:null};
+  afPerm={MO:null,W:null,D:null,H4:null,H1:null,M15:null};
   afBusy=false;
   curAnalysis={date:null,tfs:{},verdict:null};
   localStorage.removeItem('pm_afRes');localStorage.removeItem('pm_afPerm');
   localStorage.removeItem('pm_curAnalysis');localStorage.removeItem('pm_afImgSrc');
-  ['W','D','H4','H1','M15'].forEach(function(tf,i){
+  ['MO','W','D','H4','H1','M15'].forEach(function(tf,i){
     var card=document.getElementById('af-'+tf); if(!card)return;
     card.className='af-card'+(i>0?' locked':'');
     if(tf==='M15'){card.style.display='none';}
@@ -606,7 +634,7 @@ function restoreAnalysis() {
       afImgs[tf]={base64:src.split(',')[1],mediaType:(src.match(/data:(.*?);/)||[,'image/jpeg'])[1],src:src};
       var btn=document.getElementById('afbtn-'+tf); if(btn)btn.disabled=false;
     });
-    ['W','D','H4','H1','M15'].forEach(function(tf,i){
+    ['MO','W','D','H4','H1','M15'].forEach(function(tf,i){
       var result=afRes[tf], perm=afPerm[tf];
       if(!result)return;
       var card=document.getElementById('af-'+tf); if(!card)return;
