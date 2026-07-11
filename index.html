@@ -436,8 +436,15 @@ body{background:#0a0800;color:#f5ead0;font-family:'Outfit',sans-serif;height:100
       <div id="apikey-status" style="margin-top:10px;font-size:12px;font-weight:600"></div>
     </div>
 
-    <div style="color:#5a4a30;font-size:11px;line-height:1.6;padding:0 4px">
+    <div style="color:#5a4a30;font-size:11px;line-height:1.6;padding:0 4px;margin-bottom:20px">
       Don't have a key? Create one at <span style="color:#f0c040">console.anthropic.com</span> under API Keys. Usage is billed directly by Anthropic based on your account, separate from any Claude.ai subscription.
+    </div>
+
+    <div style="background:#1a1500;border:1px solid rgba(255,51,85,.25);border-radius:12px;padding:16px">
+      <div style="color:#f5ead0;font-size:14px;font-weight:700;margin-bottom:6px">Reset App Data</div>
+      <div style="color:#5a4a30;font-size:12px;line-height:1.5;margin-bottom:12px">Clears checklist state, journal entries, chat history, narrative notes, and analysis history. Your API key is kept.</div>
+      <button onclick="confirmResetData()" style="width:100%;padding:11px 14px;background:transparent;border:1.5px solid #ff3355;border-radius:10px;color:#ff3355;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation">🗑️ Reset All App Data</button>
+      <div id="reset-status" style="margin-top:10px;font-size:12px;font-weight:600"></div>
     </div>
   </div>
 </div>
@@ -857,6 +864,33 @@ function clearApiKey() {
   showToast('Key cleared');
 }
 
+function confirmResetData() {
+  var ok = window.confirm('Reset all app data?\n\nThis clears checklist, journal entries, chat history, narrative notes, and analysis history. Your API key is kept. This cannot be undone.');
+  if(!ok) return;
+
+  var preserveKey = localStorage.getItem('pm_apikey');
+  var keysToRemove = [];
+  for(var i=0; i<localStorage.length; i++){
+    var k = localStorage.key(i);
+    if(k && k.indexOf('pm_')===0 && k!=='pm_apikey'){ keysToRemove.push(k); }
+  }
+  keysToRemove.forEach(function(k){ localStorage.removeItem(k); });
+
+  // Reset in-memory state to defaults
+  checklistState = {};
+  journalEntries = [];
+  narrativeEntries = [];
+  chatHist = [];
+  afImgs = {MO:null, W:null, D:null, H4:null, H1:null, M15:null};
+  afRes = {MO:null, W:null, D:null, H4:null, H1:null, M15:null};
+  afPerm = {MO:null, W:null, D:null, H4:null, H1:null, M15:null};
+  curAnalysis = {date:null, tfs:{}, verdict:null};
+
+  var st = document.getElementById('reset-status');
+  if(st){ st.innerHTML = '<span style="color:#00e87a">✓ App data reset</span>'; }
+  showToast('🗑️ App data reset');
+}
+
 function initSettingsPage() {
   var inp = document.getElementById('apikey-input');
   var st = document.getElementById('apikey-status');
@@ -893,31 +927,59 @@ function afUp(e, tf) {
   afBusy = false;
   var r = new FileReader();
   r.onload = function(ev) {
-    var parts = ev.target.result.split(',');
-    var mt = (parts[0].match(/:(.*?);/) || [,'image/jpeg'])[1];
-    var b64 = parts[1];
-    afImgs[tf] = {base64:b64, mediaType:mt, src:ev.target.result};
     var imgEl = document.getElementById('afi-'+tf);
     if(imgEl){imgEl.src=ev.target.result;imgEl.classList.add('show');}
-    document.getElementById('afbtn-'+tf).disabled = false;
-    document.getElementById('afs-'+tf).innerHTML = '<span class="badge amber">READY</span>';
-    showToast('Chart loaded — tap Analyze');
-    // Compress and save
+    document.getElementById('afs-'+tf).innerHTML = '<span class="badge amber">COMPRESSING...</span>';
+    showToast('Preparing chart...');
+
     try {
       var cv = document.createElement('canvas');
       var ti = new Image();
       ti.onload = function(){
-        var MX=600,w=ti.width,h=ti.height;
-        if(w>MX){h=Math.round(h*MX/w);w=MX;}
+        // API payload: capped at 1200px wide, JPEG 0.85 — cuts token cost while keeping chart text/lines readable
+        var MX_API=1200, w=ti.width, h=ti.height;
+        if(w>MX_API){h=Math.round(h*MX_API/w);w=MX_API;}
         cv.width=w;cv.height=h;
         cv.getContext('2d').drawImage(ti,0,0,w,h);
-        var comp = cv.toDataURL('image/jpeg',0.6);
-        var sv = JSON.parse(localStorage.getItem('pm_afImgSrc')||'{}');
-        sv[tf]=comp;
-        try{localStorage.setItem('pm_afImgSrc',JSON.stringify(sv));}catch(e2){}
+        var apiComp = cv.toDataURL('image/jpeg',0.85);
+        var apiB64 = apiComp.split(',')[1];
+        afImgs[tf] = {base64:apiB64, mediaType:'image/jpeg', src:ev.target.result};
+
+        document.getElementById('afbtn-'+tf).disabled = false;
+        document.getElementById('afs-'+tf).innerHTML = '<span class="badge amber">READY</span>';
+        showToast('Chart loaded — tap Analyze');
+
+        // Smaller thumbnail for local storage preview only (600px, 0.6 quality)
+        var cv2 = document.createElement('canvas');
+        var MX_THUMB=600, w2=ti.width, h2=ti.height;
+        if(w2>MX_THUMB){h2=Math.round(h2*MX_THUMB/w2);w2=MX_THUMB;}
+        cv2.width=w2;cv2.height=h2;
+        cv2.getContext('2d').drawImage(ti,0,0,w2,h2);
+        var thumbComp = cv2.toDataURL('image/jpeg',0.6);
+        try {
+          var sv = JSON.parse(localStorage.getItem('pm_afImgSrc')||'{}');
+          sv[tf]=thumbComp;
+          localStorage.setItem('pm_afImgSrc',JSON.stringify(sv));
+        } catch(e2){}
+      };
+      ti.onerror = function(){
+        // Fallback: use original uncompressed if canvas processing fails
+        var parts = ev.target.result.split(',');
+        var mt = (parts[0].match(/:(.*?);/) || [,'image/jpeg'])[1];
+        afImgs[tf] = {base64:parts[1], mediaType:mt, src:ev.target.result};
+        document.getElementById('afbtn-'+tf).disabled = false;
+        document.getElementById('afs-'+tf).innerHTML = '<span class="badge amber">READY</span>';
+        showToast('Chart loaded (uncompressed) — tap Analyze');
       };
       ti.src = ev.target.result;
-    } catch(e){}
+    } catch(err) {
+      var parts = ev.target.result.split(',');
+      var mt = (parts[0].match(/:(.*?);/) || [,'image/jpeg'])[1];
+      afImgs[tf] = {base64:parts[1], mediaType:mt, src:ev.target.result};
+      document.getElementById('afbtn-'+tf).disabled = false;
+      document.getElementById('afs-'+tf).innerHTML = '<span class="badge amber">READY</span>';
+      showToast('Chart loaded — tap Analyze');
+    }
   };
   r.readAsDataURL(f);
   setTimeout(function(){try{e.target.value='';}catch(ex){}},300);
@@ -1126,3 +1188,5 @@ function fmt(t){
 </script>
 </body>
 </html>
+
+  
