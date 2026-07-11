@@ -310,7 +310,7 @@ body{background:#0a0800;color:#f5ead0;font-family:'Outfit',sans-serif;height:100
 </div>
 
 <!-- PAGE: CHAT -->
-<div class="page" id="page-chat" style="flex-direction:column;height:100%">
+<div class="page" id="page-chat" style="flex-direction:column">
   <div style="padding:16px 16px 10px;flex-shrink:0">
     <div style="color:#f0c040;font-size:18px;font-weight:800">AI Chat 💬</div>
     <div style="color:#5a4a30;font-size:11px;margin-top:2px">Ask about the current analysis or PMTS rules</div>
@@ -327,27 +327,99 @@ body{background:#0a0800;color:#f5ead0;font-family:'Outfit',sans-serif;height:100
 
 <!-- PAGE: CHECKLIST -->
 <div class="page" id="page-checklist">
-  <div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">Checklist ✅</div>
-  <div style="padding:0 20px;color:#888;font-size:13px">Checklist page loaded correctly</div>
+  <div style="padding:16px">
+    <div style="color:#f0c040;font-size:18px;font-weight:800;margin-bottom:2px">Pre-Trade Checklist ✅</div>
+    <div style="color:#5a4a30;font-size:11px;margin-bottom:16px">PMTS 9-Condition Gate — all required before execution</div>
+    <div id="checklist-items"></div>
+    <div id="checklist-verdict" style="margin-top:16px;padding:16px;border-radius:12px;text-align:center;font-weight:800;font-size:15px"></div>
+    <button onclick="resetChecklist()" style="width:100%;margin-top:12px;padding:11px;background:#1a1500;border:1.5px solid #2a2200;border-radius:10px;color:#5a4a30;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;cursor:pointer">↺ Reset Checklist</button>
+  </div>
 </div>
 
 <!-- PAGE: CALC -->
 <div class="page" id="page-calc">
-  <div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">Calculator ✅</div>
-  <div style="padding:0 20px;color:#888;font-size:13px">Calc page loaded correctly</div>
+  <div style="padding:16px">
+    <div style="color:#f0c040;font-size:18px;font-weight:800;margin-bottom:2px">Position Size Calculator 🧮</div>
+    <div style="color:#5a4a30;font-size:11px;margin-bottom:16px">EURUSD lot sizing based on account risk</div>
+    <div style="background:#1a1500;border:1px solid #2a2200;border-radius:12px;padding:16px">
+      <label style="color:#f5ead0;font-size:12px;font-weight:700">Account Balance ($)</label>
+      <input type="number" id="calc-balance" placeholder="1000" style="width:100%;margin:6px 0 12px;padding:10px 12px;background:#0a0800;border:1.5px solid rgba(212,160,23,.25);border-radius:8px;color:#f5ead0;font-family:'JetBrains Mono',monospace;font-size:13px;box-sizing:border-box"/>
+      <label style="color:#f5ead0;font-size:12px;font-weight:700">Risk per Trade (%)</label>
+      <input type="number" id="calc-risk" placeholder="1" style="width:100%;margin:6px 0 12px;padding:10px 12px;background:#0a0800;border:1.5px solid rgba(212,160,23,.25);border-radius:8px;color:#f5ead0;font-family:'JetBrains Mono',monospace;font-size:13px;box-sizing:border-box"/>
+      <label style="color:#f5ead0;font-size:12px;font-weight:700">Stop Loss (pips)</label>
+      <input type="number" id="calc-pips" placeholder="50" style="width:100%;margin:6px 0 14px;padding:10px 12px;background:#0a0800;border:1.5px solid rgba(212,160,23,.25);border-radius:8px;color:#f5ead0;font-family:'JetBrains Mono',monospace;font-size:13px;box-sizing:border-box"/>
+      <button onclick="calcPositionSize()" style="width:100%;padding:12px;background:#f0c040;border:none;border-radius:10px;color:#0a0800;font-weight:800;font-size:13px;cursor:pointer">Calculate</button>
+      <div id="calc-result" style="margin-top:14px"></div>
+    </div>
+  </div>
 </div>
 
 <!-- PAGE: JOURNAL -->
 <div class="page" id="page-journal">
-  <div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">Journal ✅</div>
-  <div style="padding:0 20px;color:#888;font-size:13px">Journal page loaded correctly</div>
+  <div style="padding:16px">
+    <div style="color:#f0c040;font-size:18px;font-weight:800;margin-bottom:2px">Trade Journal 📒</div>
+    <div style="color:#5a4a30;font-size:11px;margin-bottom:14px">Log every trade per PMTS governance</div>
+    <div style="background:#1a1500;border:1px solid #2a2200;border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <select id="jr-dir" style="flex:1;padding:9px;background:#0a0800;border:1.5px solid rgba(212,160,23,.25);border-radius:8px;color:#f5ead0;font-size:12px">
+          <option value="Long">Long</option><option value="Short">Short</option>
+        </select>
+        <input type="text" id="jr-date" placeholder="Date" style="flex:1;padding:9px;background:#0a0800;border:1.5px solid rgba(212,160,23,.25);border-radius:8px;color:#f5ead0;font-size:12px"/>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="jr-entry" placeholder="Entry" style="flex:1;padding:9px;background:#0a0800;border:1.5px solid rgba(212,160,23,.25);border-radius:8px;color:#f5ead0;font-size:12px"/>
+        <input type="text" id="jr-sl" placeholder="SL" style="flex:1;padding:9px;background:#0a0800;border:1.5px solid rgba(212,160,23,.25);border-radius:8px;color:#f5ead0;font-size:12px"/>
+        <input type="text" id="jr-tp" placeholder="TP" style="flex:1;padding:9px;background:#0a0800;border:1.5px solid rgba(212,160,23,.25);border-radius:8px;color:#f5ead0;font-size:12px"/>
+      </div>
+      <select id="jr-result" style="width:100%;margin-bottom:8px;padding:9px;background:#0a0800;border:1.5px solid rgba(212,160,23,.25);border-radius:8px;color:#f5ead0;font-size:12px">
+        <option value="Open">Open</option><option value="Win">Win</option><option value="Loss">Loss</option><option value="Breakeven">Breakeven</option>
+      </select>
+      <textarea id="jr-notes" placeholder="Notes..." style="width:100%;min-height:50px;padding:9px;background:#0a0800;border:1.5px solid rgba(212,160,23,.25);border-radius:8px;color:#f5ead0;font-size:12px;box-sizing:border-box;font-family:'Outfit',sans-serif"></textarea>
+      <button onclick="addJournalEntry()" style="width:100%;margin-top:10px;padding:11px;background:#f0c040;border:none;border-radius:10px;color:#0a0800;font-weight:800;font-size:13px;cursor:pointer">+ Add Entry</button>
+    </div>
+    <div id="journal-list"></div>
+  </div>
 </div>
 
 <!-- MORE PAGES (from More menu) -->
-<div class="page" id="page-stats"><div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">Stats ✅</div></div>
-<div class="page" id="page-planner"><div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">Planner ✅</div></div>
-<div class="page" id="page-narrative"><div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">Narrative ✅</div></div>
-<div class="page" id="page-history"><div style="padding:20px;color:#f0c040;font-size:18px;font-weight:800">History ✅</div></div>
+<div class="page" id="page-stats">
+  <div style="padding:16px">
+    <div style="color:#f0c040;font-size:18px;font-weight:800;margin-bottom:14px">Stats 📊</div>
+    <div id="stats-body"></div>
+  </div>
+</div>
+<div class="page" id="page-planner">
+  <div style="padding:16px">
+    <div style="color:#f0c040;font-size:18px;font-weight:800;margin-bottom:2px">Funding Planner 🎯</div>
+    <div style="color:#5a4a30;font-size:11px;margin-bottom:14px">Track progress toward your PMTS Level ceiling</div>
+    <div style="background:#1a1500;border:1px solid #2a2200;border-radius:12px;padding:16px">
+      <label style="color:#f5ead0;font-size:12px;font-weight:700">Current Balance ($)</label>
+      <input type="number" id="pl-current" placeholder="256.63" style="width:100%;margin:6px 0 12px;padding:10px 12px;background:#0a0800;border:1.5px solid rgba(212,160,23,.25);border-radius:8px;color:#f5ead0;font-family:'JetBrains Mono',monospace;font-size:13px;box-sizing:border-box"/>
+      <label style="color:#f5ead0;font-size:12px;font-weight:700">Level Ceiling Target ($)</label>
+      <input type="number" id="pl-target" placeholder="500" style="width:100%;margin:6px 0 12px;padding:10px 12px;background:#0a0800;border:1.5px solid rgba(212,160,23,.25);border-radius:8px;color:#f5ead0;font-family:'JetBrains Mono',monospace;font-size:13px;box-sizing:border-box"/>
+      <label style="color:#f5ead0;font-size:12px;font-weight:700">Planned Monthly Funding ($)</label>
+      <input type="number" id="pl-monthly" placeholder="125" style="width:100%;margin:6px 0 14px;padding:10px 12px;background:#0a0800;border:1.5px solid rgba(212,160,23,.25);border-radius:8px;color:#f5ead0;font-family:'JetBrains Mono',monospace;font-size:13px;box-sizing:border-box"/>
+      <button onclick="calcPlanner()" style="width:100%;padding:12px;background:#f0c040;border:none;border-radius:10px;color:#0a0800;font-weight:800;font-size:13px;cursor:pointer">Calculate Timeline</button>
+      <div id="planner-result" style="margin-top:14px"></div>
+    </div>
+  </div>
+</div>
+<div class="page" id="page-narrative">
+  <div style="padding:16px">
+    <div style="color:#f0c040;font-size:18px;font-weight:800;margin-bottom:2px">Market Narrative 📝</div>
+    <div style="color:#5a4a30;font-size:11px;margin-bottom:12px">Freeform session notes and market read</div>
+    <textarea id="narr-input" placeholder="Today's market narrative..." style="width:100%;min-height:120px;padding:12px;background:#1a1500;border:1.5px solid rgba(212,160,23,.25);border-radius:10px;color:#f5ead0;font-size:13px;box-sizing:border-box;font-family:'Outfit',sans-serif"></textarea>
+    <button onclick="saveNarrative()" style="width:100%;margin-top:10px;padding:11px;background:#f0c040;border:none;border-radius:10px;color:#0a0800;font-weight:800;font-size:13px;cursor:pointer">💾 Save Entry</button>
+    <div id="narrative-list" style="margin-top:16px"></div>
+  </div>
+</div>
+<div class="page" id="page-history">
+  <div style="padding:16px">
+    <div style="color:#f0c040;font-size:18px;font-weight:800;margin-bottom:2px">Analysis History 🕐</div>
+    <div style="color:#5a4a30;font-size:11px;margin-bottom:14px">Past PMTS chart analyses, saved automatically</div>
+    <div id="history-list"></div>
+  </div>
+</div>
 <div class="page" id="page-settings">
   <div style="padding:20px 16px">
     <div style="color:#f0c040;font-size:18px;font-weight:800;margin-bottom:18px">Settings ⚙️</div>
@@ -396,6 +468,11 @@ function sw(tab) {
   if(ni) ni.classList.add('act');
   if(tab === 'settings') initSettingsPage();
   if(tab === 'chat') renderChat();
+  if(tab === 'checklist') renderChecklist();
+  if(tab === 'journal') renderJournal();
+  if(tab === 'stats') renderStats();
+  if(tab === 'narrative') renderNarrative();
+  if(tab === 'history') renderHistory();
   showToast(tab + ' ✓');
 }
 function swMore(tab) {
@@ -549,6 +626,216 @@ function clearChat() {
   chatHist = [];
   localStorage.removeItem('pm_chatHist');
   renderChat();
+}
+
+// ── CHECKLIST ──
+var CHECKLIST_ITEMS = [
+  {id:'c1', label:'Tuesday–Thursday only'},
+  {id:'c2', label:'London or New York session active'},
+  {id:'c3', label:'Monthly mission confirmed'},
+  {id:'c4', label:'Weekly plan aligned with Monthly'},
+  {id:'c5', label:'Daily permission granted'},
+  {id:'c6', label:'H4 structure aligned'},
+  {id:'c7', label:'H1 liquidity sweep occurred'},
+  {id:'c8', label:'H1 break of structure confirmed'},
+  {id:'c9', label:'Clean pullback entry available'}
+];
+var checklistState = JSON.parse(localStorage.getItem('pm_checklist') || '{}');
+
+function renderChecklist() {
+  var wrap = document.getElementById('checklist-items');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  CHECKLIST_ITEMS.forEach(function(item){
+    var checked = !!checklistState[item.id];
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:13px 14px;background:#1a1500;border:1px solid #2a2200;border-radius:10px;margin-bottom:8px;cursor:pointer';
+    row.innerHTML = '<div style="width:22px;height:22px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;'+
+      (checked ? 'background:#00e87a;color:#0a0800' : 'background:#0a0800;border:1.5px solid rgba(212,160,23,.3)')+'">'+(checked?'✓':'')+'</div>'+
+      '<div style="font-size:13px;color:'+(checked?'#f5ead0':'#8a7a5a')+'">'+item.label+'</div>';
+    row.onclick = function(){
+      checklistState[item.id] = !checklistState[item.id];
+      localStorage.setItem('pm_checklist', JSON.stringify(checklistState));
+      renderChecklist();
+    };
+    wrap.appendChild(row);
+  });
+  var allChecked = CHECKLIST_ITEMS.every(function(i){ return checklistState[i.id]; });
+  var count = CHECKLIST_ITEMS.filter(function(i){ return checklistState[i.id]; }).length;
+  var verdict = document.getElementById('checklist-verdict');
+  var baseStyle = 'padding:16px;border-radius:12px;text-align:center;font-weight:800;font-size:15px;';
+  if(allChecked){
+    verdict.style.cssText = baseStyle+'background:rgba(0,232,122,.12);border:1px solid #00e87a;color:#00e87a';
+    verdict.textContent = '✅ ALL CONDITIONS MET — EXECUTE';
+  } else {
+    verdict.style.cssText = baseStyle+'background:rgba(255,51,85,.1);border:1px solid #ff3355;color:#ff3355';
+    verdict.textContent = '🚫 STAND DOWN ('+count+'/9 conditions met)';
+  }
+}
+function resetChecklist() {
+  checklistState = {};
+  localStorage.setItem('pm_checklist', '{}');
+  renderChecklist();
+  showToast('Checklist reset');
+}
+
+// ── CALC ──
+function calcPositionSize() {
+  var bal = parseFloat(document.getElementById('calc-balance').value);
+  var riskPct = parseFloat(document.getElementById('calc-risk').value);
+  var pips = parseFloat(document.getElementById('calc-pips').value);
+  var out = document.getElementById('calc-result');
+  if(!bal || !riskPct || !pips){ out.innerHTML = '<div style="color:#ff3355;font-size:12px">Fill in all fields</div>'; return; }
+  var riskAmount = bal * (riskPct/100);
+  var pipValuePerStdLot = 10;
+  var lots = riskAmount / (pips * pipValuePerStdLot);
+  var lotsRounded = Math.floor(lots*100)/100;
+  var minLot = 0.01;
+  var actualLots = lotsRounded < minLot ? minLot : lotsRounded;
+  var actualRiskDollar = actualLots * pips * pipValuePerStdLot;
+  var actualRiskPct = (actualRiskDollar/bal*100).toFixed(2);
+  out.innerHTML =
+    '<div style="border-top:1px solid #2a2200;padding-top:12px;font-size:13px;color:#f5ead0;line-height:2">'+
+    'Risk amount: <b style="color:#f0c040">$'+riskAmount.toFixed(2)+'</b><br>'+
+    'Calculated lot size: <b style="color:#f0c040">'+lots.toFixed(4)+' lots</b><br>'+
+    'Tradable (min 0.01): <b style="color:#00e87a">'+actualLots.toFixed(2)+' lots</b><br>'+
+    'Actual risk at min lot: <b style="color:'+(actualRiskPct>riskPct*1.3?'#ff3355':'#f5ead0')+'">$'+actualRiskDollar.toFixed(2)+' ('+actualRiskPct+'%)</b>'+
+    '</div>';
+}
+
+// ── JOURNAL ──
+var journalEntries = JSON.parse(localStorage.getItem('pm_journal') || '[]');
+function addJournalEntry() {
+  var dir = document.getElementById('jr-dir').value;
+  var date = document.getElementById('jr-date').value || new Date().toLocaleDateString();
+  var entry = document.getElementById('jr-entry').value;
+  var sl = document.getElementById('jr-sl').value;
+  var tp = document.getElementById('jr-tp').value;
+  var result = document.getElementById('jr-result').value;
+  var notes = document.getElementById('jr-notes').value;
+  if(!entry){ showToast('Enter an entry price'); return; }
+  journalEntries.unshift({id:Date.now(), dir:dir, date:date, entry:entry, sl:sl, tp:tp, result:result, notes:notes});
+  localStorage.setItem('pm_journal', JSON.stringify(journalEntries));
+  document.getElementById('jr-entry').value='';
+  document.getElementById('jr-sl').value='';
+  document.getElementById('jr-tp').value='';
+  document.getElementById('jr-notes').value='';
+  renderJournal();
+  showToast('✓ Trade logged');
+}
+function deleteJournalEntry(id) {
+  journalEntries = journalEntries.filter(function(e){ return e.id!==id; });
+  localStorage.setItem('pm_journal', JSON.stringify(journalEntries));
+  renderJournal();
+}
+function renderJournal() {
+  var wrap = document.getElementById('journal-list');
+  if(!wrap) return;
+  if(journalEntries.length===0){
+    wrap.innerHTML = '<div style="color:#5a4a30;font-size:12px;text-align:center;padding:20px">No trades logged yet</div>';
+    return;
+  }
+  var colors = {Win:'#00e87a', Loss:'#ff3355', Breakeven:'#f0c040', Open:'#8a7a5a'};
+  wrap.innerHTML = journalEntries.map(function(e){
+    return '<div style="background:#1a1500;border:1px solid #2a2200;border-radius:10px;padding:12px;margin-bottom:8px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+      '<div style="font-size:12px;font-weight:700;color:#f5ead0">'+e.dir+' · '+e.date+'</div>'+
+      '<div style="font-size:11px;font-weight:700;color:'+(colors[e.result]||'#8a7a5a')+'">'+e.result+'</div></div>'+
+      '<div style="font-size:11px;color:#8a7a5a">Entry '+e.entry+' · SL '+(e.sl||'-')+' · TP '+(e.tp||'-')+'</div>'+
+      (e.notes ? '<div style="font-size:11px;color:#5a4a30;margin-top:4px">'+e.notes+'</div>' : '')+
+      '<div onclick="deleteJournalEntry('+e.id+')" style="margin-top:6px;font-size:10px;color:#ff3355;cursor:pointer">🗑 Delete</div>'+
+      '</div>';
+  }).join('');
+}
+
+// ── STATS ──
+function renderStats() {
+  var body = document.getElementById('stats-body');
+  if(!body) return;
+  var closed = journalEntries.filter(function(e){ return e.result==='Win'||e.result==='Loss'||e.result==='Breakeven'; });
+  var wins = closed.filter(function(e){ return e.result==='Win'; }).length;
+  var losses = closed.filter(function(e){ return e.result==='Loss'; }).length;
+  var be = closed.filter(function(e){ return e.result==='Breakeven'; }).length;
+  var winRate = closed.length ? ((wins/closed.length)*100).toFixed(1) : '0.0';
+  body.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+    statCard('Total Trades', journalEntries.length)+
+    statCard('Closed Trades', closed.length)+
+    statCard('Win Rate', winRate+'%')+
+    statCard('Wins', wins, '#00e87a')+
+    statCard('Losses', losses, '#ff3355')+
+    statCard('Breakeven', be, '#f0c040')+
+    '</div>';
+}
+function statCard(label, val, color) {
+  return '<div style="background:#1a1500;border:1px solid #2a2200;border-radius:10px;padding:14px;text-align:center">'+
+    '<div style="font-size:22px;font-weight:800;color:'+(color||'#f0c040')+'">'+val+'</div>'+
+    '<div style="font-size:10px;color:#5a4a30;margin-top:4px">'+label+'</div></div>';
+}
+
+// ── PLANNER ──
+function calcPlanner() {
+  var cur = parseFloat(document.getElementById('pl-current').value);
+  var target = parseFloat(document.getElementById('pl-target').value);
+  var monthly = parseFloat(document.getElementById('pl-monthly').value);
+  var out = document.getElementById('planner-result');
+  if(!cur || !target || !monthly){ out.innerHTML = '<div style="color:#ff3355;font-size:12px">Fill in all fields</div>'; return; }
+  if(cur>=target){ out.innerHTML = '<div style="color:#00e87a;font-size:13px;font-weight:700;border-top:1px solid #2a2200;padding-top:12px">✓ Target already reached</div>'; return; }
+  var remaining = target - cur;
+  var months = Math.ceil(remaining/monthly);
+  var progressPct = ((cur/target)*100).toFixed(1);
+  out.innerHTML =
+    '<div style="border-top:1px solid #2a2200;padding-top:12px;font-size:13px;color:#f5ead0;line-height:2">'+
+    'Remaining to target: <b style="color:#f0c040">$'+remaining.toFixed(2)+'</b><br>'+
+    'Months needed: <b style="color:#f0c040">'+months+'</b><br>'+
+    'Current progress: <b style="color:#00e87a">'+progressPct+'%</b>'+
+    '<div style="background:#0a0800;border-radius:6px;height:8px;margin-top:8px;overflow:hidden"><div style="background:#f0c040;height:100%;width:'+Math.min(progressPct,100)+'%"></div></div>'+
+    '</div>';
+}
+
+// ── NARRATIVE ──
+var narrativeEntries = JSON.parse(localStorage.getItem('pm_narrative') || '[]');
+function saveNarrative() {
+  var val = document.getElementById('narr-input').value.trim();
+  if(!val){ showToast('Write something first'); return; }
+  narrativeEntries.unshift({id:Date.now(), text:val, date:new Date().toLocaleString()});
+  localStorage.setItem('pm_narrative', JSON.stringify(narrativeEntries));
+  document.getElementById('narr-input').value='';
+  renderNarrative();
+  showToast('✓ Narrative saved');
+}
+function deleteNarrative(id) {
+  narrativeEntries = narrativeEntries.filter(function(e){ return e.id!==id; });
+  localStorage.setItem('pm_narrative', JSON.stringify(narrativeEntries));
+  renderNarrative();
+}
+function renderNarrative() {
+  var wrap = document.getElementById('narrative-list');
+  if(!wrap) return;
+  if(narrativeEntries.length===0){ wrap.innerHTML = '<div style="color:#5a4a30;font-size:12px;text-align:center;padding:14px">No entries yet</div>'; return; }
+  wrap.innerHTML = narrativeEntries.map(function(e){
+    return '<div style="background:#1a1500;border:1px solid #2a2200;border-radius:10px;padding:12px;margin-bottom:8px">'+
+      '<div style="font-size:10px;color:#5a4a30;margin-bottom:6px">'+e.date+'</div>'+
+      '<div style="font-size:12px;color:#f5ead0;white-space:pre-wrap">'+e.text+'</div>'+
+      '<div onclick="deleteNarrative('+e.id+')" style="margin-top:6px;font-size:10px;color:#ff3355;cursor:pointer">🗑 Delete</div></div>';
+  }).join('');
+}
+
+// ── HISTORY ──
+function renderHistory() {
+  var wrap = document.getElementById('history-list');
+  if(!wrap) return;
+  var order = ['MO','W','D','H4','H1','M15'];
+  var names = {MO:'Monthly',W:'Weekly',D:'Daily',H4:'H4',H1:'H1',M15:'M15'};
+  var any = order.some(function(tf){ return curAnalysis.tfs[tf] && curAnalysis.tfs[tf].result; });
+  if(!any){ wrap.innerHTML = '<div style="color:#5a4a30;font-size:12px;text-align:center;padding:20px">No analysis run yet this session</div>'; return; }
+  wrap.innerHTML = order.filter(function(tf){ return curAnalysis.tfs[tf] && curAnalysis.tfs[tf].result; }).map(function(tf){
+    var t = curAnalysis.tfs[tf];
+    var permBadge = t.permission===true ? '<span style="color:#00e87a">✓ GRANTED</span>' : t.permission===false ? '<span style="color:#ff3355">✗ DENIED</span>' : '';
+    return '<div style="background:#1a1500;border:1px solid #2a2200;border-radius:10px;padding:12px;margin-bottom:8px">'+
+      '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#f0c040;margin-bottom:6px"><span>'+names[tf]+'</span>'+permBadge+'</div>'+
+      '<div style="font-size:11px;color:#8a7a5a;max-height:80px;overflow:hidden;white-space:pre-wrap">'+t.result.slice(0,300)+(t.result.length>300?'...':'')+'</div></div>';
+  }).join('');
 }
 
 function saveApiKey() {
@@ -839,7 +1126,3 @@ function fmt(t){
 </script>
 </body>
 </html>
-
-
-
-
